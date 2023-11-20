@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KYC DApp</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.3.0/dist/web3.min.js"></script>
+    <title>Property Transfer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        input, button {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Property Transfer System</h1>
+
+    <section id="add-property">
+        <h2>Add Property</h2>
+        <input type="text" id="addressLine" placeholder="Address Line">
+        <input type="text" id="location" placeholder="Location">
+        <input type="number" id="floors" placeholder="Floors">
+        <input type="number" id="cost" placeholder="Cost">
+        <button id="addPropertyButton">Add Property</button>
+    </section>
+
+    <section id="property-list">
+        <h2>Available Properties</h2>
+        <ul id="properties"></ul>
+    </section>
+
+    <section id="transfer-property">
+        <h2>Transfer Property</h2>
+        <input type="text" id="propertyId" placeholder="Property ID">
+        <input type="text" id="newOwnerAddress" placeholder="New Owner Address">
+        <button id="transferButton">Transfer Property</button>
+    </section>
+
+    <section id="my-properties">
+        <h2>My Properties</h2>
+        <button id="myPropertiesButton">Show My Properties</button>
+        <ul id="myProperties"></ul>
+    </section>
+
+    <script>
+
+        web3 = new Web3(new Web3.providers.HttpProvider("http://127.0.0.1:7545"));
+
+        const contractAddress = '0x82A44806137a17eB7042bC45d73c0511113117f0'; // Replace with your contract's address
+
+        let accounts;
+
+        const contractABI = [
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "propertyId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "addressLine",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "location",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "floors",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "cost",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			}
+		],
+		"name": "PropertyAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "propertyId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "PropertyTransferred",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_address",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_location",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_floors",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_cost",
+				"type": "uint256"
+			}
+		],
+		"name": "addProperty",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getMyProperties",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "ownerToProperties",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "properties",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "addressLine",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "location",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "floors",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "cost",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "propertyCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "propertyToOwner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_propertyId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "_newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferProperty",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]; // Replace with your contract's ABI
+
+      const propertyTransferContract = new web3.eth.Contract(contractABI, contractAddress);
+      displayProperties();
+
+        async function displayProperties() {
+           async function displayProperties() {
+            const propertyCount = await propertyTransferContract.methods.propertyCount().call();
+            const propertiesList = document.getElementById('properties');
+            propertiesList.innerHTML = '';
+
+            for (let i = 0; i < propertyCount; i++) {
+                const property = await propertyTransferContract.methods.properties(i).call();
+                const listItem = document.createElement('li');
+                listItem.textContent = `Property ID: ${i}, Address: ${property.addressLine}, Location: ${property.location}, Owner: ${property.sender}`;
+                propertiesList.appendChild(listItem);
+            }
+        }
+        }
+
+async function addProperty() {
+    const addressLine = document.getElementById('addressLine').value;
+    const location = document.getElementById('location').value;
+    const floors = document.getElementById('floors').value;
+    const cost = document.getElementById('cost').value;
+    accounts = await web3.eth.getAccounts();
+
+    try {
+        propertyTransferContract.methods.addProperty(addressLine, location, floors, cost)
+        .send({ from: accounts[0],gas: 500000 })
+        .on('transactionHash', function(hash){
+            console.log('Transaction hash:', hash);
+        })
+        .on('confirmation', function(confirmationNumber, receipt){
+            console.log('Confirmation number:', confirmationNumber);
+            if (confirmationNumber === 1) {
+                alert('Property added successfully');
+                displayProperties();
+            }
+        })
+        .on('error', function(error){
+            alert('Error adding property');
+            console.error(error);
+        });
+    } catch (error) {
+        alert('Error sending transaction');
+        console.error(error);
+    }
+}
+
+
+        async function getMyProperties() {
+            const myPropertiesList = document.getElementById('myProperties');
+            myPropertiesList.innerHTML = '';
+            accounts = await web3.eth.getAccounts();
+            alert(accounts[0]);
+
+            try {
+                const myProperties = await propertyTransferContract.methods.getMyProperties().call({ from: accounts[0] });
+                myProperties.forEach(async (propertyId) => {
+                    const property = await propertyTransferContract.methods.properties(propertyId).call();
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `Property ID: ${propertyId}, Address: ${property.addressLine}, Location: ${property.location}, Owner: ${property.sender}}`;
+                    myPropertiesList.appendChild(listItem);
+                });
+            } catch (error) {
+                alert('Error fetching your properties');
+                console.error(error);
+            }
+        }
+
+        async function transferProperty() {
+            const propertyId = document.getElementById('propertyId').value;
+            const newOwnerAddress = document.getElementById('newOwnerAddress').value;
+            accounts = await web3.eth.getAccounts();
+
+            try {
+                await propertyTransferContract.methods.transferProperty(propertyId, newOwnerAddress).send({ from: accounts[0],gas: 500000});
+                alert('Property transferred successfully');
+                displayProperties();
+            } catch (error) {
+                alert('Error during property transfer');
+                console.error(error);
+            }
+        }
+
+        document.getElementById('addPropertyButton').addEventListener('click', addProperty);
+        document.getElementById('myPropertiesButton').addEventListener('click', getMyProperties);
+        document.getElementById('transferButton').addEventListener('click', transferProperty);
+    </script>
+</body>
+</html>

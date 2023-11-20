@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Jewellery Store</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { width: 80%; margin: auto; text-align: center; }
+        .jewelry { margin: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Online Jewellery Store</h1>
+        <button id="loadJewelries">Load Available Jewelries</button>
+        <div id="jewelryList"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+    <script>
+        const contractAddress = '0x021c8D8b141d99CBA462eFA4Edf557aE4d0D5115';
+        const contractABI = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "displayAvailableJewelry",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "itemType",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "price",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "material",
+						"type": "string"
+					},
+					{
+						"internalType": "bool",
+						"name": "isSold",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct OnlineJewelleryStore.Jewelry[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "jewelries",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "itemType",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "material",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "isSold",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "purchaseItem",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "purchasedItems",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+        //let contract;
+        let accounts;
+
+       web3 = new Web3(new Web3.providers.HttpProvider("http://127.0.0.1:7545"));
+
+      const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+       
+
+        async function loadJewelries() {
+            const jewelryListDiv = document.getElementById('jewelryList');
+            jewelryListDiv.innerHTML = '';
+            accounts = await web3.eth.getAccounts();
+
+            const jewelries = await contract.methods.displayAvailableJewelry().call();
+            jewelries.forEach(jewelry => {
+                const jewelryDiv = document.createElement('div');
+                jewelryDiv.className = 'jewelry';
+                jewelryDiv.innerHTML = `
+                    <p>Type: ${jewelry.itemType}</p>
+                    <p>Price: ${jewelry.price}</p>
+                    <p>Material: ${jewelry.material}</p>
+                    <button onclick="purchaseItem(${jewelry.id})">Purchase</button>
+                `;
+                jewelryListDiv.appendChild(jewelryDiv);
+            });
+        }
+
+        async function purchaseItem(id) {
+            await contract.methods.purchaseItem(id).send({ from: accounts[0] })
+                .then(function(receipt){
+                    console.log('Purchase successful', receipt);
+                    loadJewelries();
+                });
+        }
+
+       document.getElementById('loadJewelries').addEventListener('click', loadJewelries);
+    </script>
+</body>
+</html>

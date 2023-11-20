@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KYC DApp</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.3.0/dist/web3.min.js"></script>
+</head>
+<body>
+
+<div>
+    <h2>KYC User Verification</h2>
+    <input type="text" id="userAddress" placeholder="User Address">
+    <button onclick="getUserStatus()">Check Status</button>
+    <p id="userStatus">User Status: N/A</p>
+</div>
+
+<div id="contextMenu" class="context-menu" style="display: none;">
+    <ul>
+        <li id="copyAccount">Copy Account</li>
+    </ul>
+<style>
+    .context-menu {
+        position: absolute;
+        background-color: #f9f9f9;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        padding: 12px 16px;
+        z-index: 1;
+    }
+
+    .context-menu ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .context-menu ul li {
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+
+    .context-menu ul li:hover {
+        background-color: #f1f1f1;
+    }
+</style>
+
+</div>
+
+
+<div>
+    <h2>Accounts</h2>
+    <div id="accountsGrid">
+<style>
+    #accountsGrid table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    #accountsGrid th, #accountsGrid td {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: left;
+    }
+    #accountsGrid tr:hover {
+        background-color: #ddd;
+        cursor: pointer;
+    }
+   .admin-row {
+        background-color: #ffcccb;
+}
+</style>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>S.No</th>
+                    <th>Account No</th>
+                </tr>
+            </thead>
+            <tbody id="accountsTableBody">
+                <!-- Account rows will be added here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+<div>
+    <h2>Change Admin</h2>
+    <input type="text" id="newAdminAddress" placeholder="New Admin Address">
+    <button onclick="changeAdmin()">Change Admin</button>
+</div>
+
+
+<div>
+    <h2>Update User Information</h2>
+    <input type="text" id="newUserAddress" placeholder="User Address">
+    <input type="text" id="documentHash" placeholder="Document Hash">
+    <input type="text" id="accountToUse" placeholder="Account to Use">
+    <button onclick="updateUser()">Update User</button>
+</div>
+
+<div>
+    <h2>View User Information</h2>
+    <input type="text" id="existingUserAddress" placeholder="Existing User Address">
+    <button onclick="viewUser()">View User</button>
+    <p id="existingUserInfo">User Info: N/A</p>
+</div>
+
+<div>
+    <h2>Verify User</h2>
+    <input type="text" id="verifyUserAddress" placeholder="User Address">
+    <input type="text" id="verifyDocumentHash" placeholder="Document Hash">
+    <button onclick="verifyUser()">Verify User</button>
+    <p id="verificationResult">Verification Result: N/A</p>
+</div>
+
+
+
+<div>
+    <h2>Events</h2>
+    <p id="events">No recent events.</p>
+</div>
+
+<div id="errorMessages">
+<h2>Errors</h2>
+  <p id="Errors">No recent errors.</p>
+<style>
+    #errorMessages p {
+        color: red;
+        font-weight: bold;
+    }
+</style>
+</div>
+
+
+<script>
+    // Assuming you have injected web3 (e.g., using MetaMask)
+    if (typeof web3 !== 'undefined') {
+        web3 = new Web3(web3.currentProvider);
+    } else {
+        // set the provider you want from Web3.providers
+        web3 = new Web3(new Web3.providers.HttpProvider("http://127.0.0.1:7545"));
+    }
+
+    const adminContractAddress = '0xAf3e1129d8079Ec58e994BE8dF087e05E7e2670a';
+    const viewDataContractAddress = '0xab2D78FDCedff1961B977CA2Cd69Fa05a65b61cC';
+    const adminAbi = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "oldAdmin",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newAdmin",
+				"type": "address"
+			}
+		],
+		"name": "AdminChanged",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "userAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "documentHash",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "isVerified",
+				"type": "bool"
+			}
+		],
+		"name": "UserUpdated",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "admin",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newAdmin",
+				"type": "address"
+			}
+		],
+		"name": "changeAdmin",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "userAddress",
+				"type": "address"
+			}
+		],
+		"name": "getUser",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "userAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "docHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "updateUser",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "users",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "isVerified",
+				"type": "bool"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "documentHash",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]; // Admin Contract ABI
+    const viewDataAbi = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "adminContractAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "userAddress",
+				"type": "address"
+			}
+		],
+		"name": "getUserData",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "userAddress",
+				"type": "address"
+			}
+		],
+		"name": "isUserVerified",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "userAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "docHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "verifyUser",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]; // View Data Contract ABI
+
+    const adminContract = new web3.eth.Contract(adminAbi, adminContractAddress);
+    const viewDataContract = new web3.eth.Contract(viewDataAbi, viewDataContractAddress);
+    document.addEventListener('DOMContentLoaded', function() {
+    displayAccounts();
+    });
+
+    
+document.addEventListener('click', function(e) {
+    const contextMenu = document.getElementById('contextMenu');
+    if (e.target.offsetParent != contextMenu) {
+        contextMenu.style.display = 'none';
+    }
+});
+
+
+    // Function to display events
+    function displayEvent(event) {
+        const eventsElement = document.getElementById('events');
+        eventsElement.innerHTML += '<p>' + JSON.stringify(event.returnValues) + '</p>';
+    }
+
+    // Event subscription
+adminContract.events.UserUpdated()
+        .on('data', function(event){
+            console.log("UserUpdated event received:", event);
+            displayEvent(event);
+        })
+        .on('error', console.error);
+
+    adminContract.events.AdminChanged()
+        .on('data', function(event){
+            console.log("AdminChanged event received:", event);
+            displayEvent(event);
+        })
+        .on('error', console.error);
+
+async function getUserStatus() {
+        try {
+            const userAddress = document.getElementById('userAddress').value;
+            const response = await viewDataContract.methods.isUserVerified(userAddress).call();
+            document.getElementById('userStatus').innerHTML = 'User Status: ' + (response ? 'Verified' : 'Not Verified');
+        } catch (error) {
+            console.error("Error in getUserStatus:", error);
+            document.getElementById('userStatus').innerHTML = 'Error occurred. Check console.';
+        }
+    }
+
+function toBytes32(hexString) {
+        if (hexString.length > 66) {
+            throw new Error("String too long for bytes32");
+        }
+        if (hexString.length < 66) {
+            // Assuming the string is a hexadecimal string, pad it to 32 bytes
+            return '0x' + hexString.slice(2).padStart(64, '0');
+        }
+        return hexString;
+    }
+
+
+async function updateUser() {
+    try {
+        const newUserAddress = document.getElementById('newUserAddress').value;
+        let documentHash = document.getElementById('documentHash').value;
+        const accountToUse = document.getElementById('accountToUse').value; // Assuming this is the ID of the input field for the account
+        const accounts = await web3.eth.getAccounts();
+
+        // Convert to bytes32 format
+        documentHash = toBytes32(documentHash);
+
+        console.log("Calling updateUser on contract...");
+        await adminContract.methods.updateUser(newUserAddress, documentHash).send({from: accountToUse || accounts[0]});
+        console.log("User updated successfully.");
+    } catch (error) {
+        console.error("Error in updateUser:", error);
+        displayError("Error in updateUser: " + error.message);
+    }
+}
+
+
+async function viewUser() {
+    try {
+        const existingUserAddress = document.getElementById('existingUserAddress').value;
+        console.log("User Address:", existingUserAddress); // Add this line for debugging
+
+        const userInfo = await viewDataContract.methods.getUserData(existingUserAddress).call();
+        console.log("User Info:", userInfo); // Add this line for debugging
+
+        const userStatus = userInfo[0] ? 'Verified' : 'Not Verified';
+        const userDocHash = userInfo[1];
+
+        document.getElementById('existingUserInfo').innerHTML = 
+            'User Status: ' + userStatus + '<br>' +
+            'Document Hash: ' + userDocHash;
+
+    } catch (error) {
+        console.error("Error in viewUser:", error);
+        document.getElementById('existingUserInfo').innerHTML = 'Error occurred. Check console.';
+    }
+}
+
+
+async function verifyUser() {
+    try {
+        const userAddress = document.getElementById('verifyUserAddress').value;
+        let documentHash = document.getElementById('verifyDocumentHash').value;
+
+        // Convert to bytes32 format if necessary
+        documentHash = toBytes32(documentHash);
+
+        const isVerified = await viewDataContract.methods.verifyUser(userAddress, documentHash).call();
+        document.getElementById('verificationResult').innerHTML = 'Verification Result: ' + (isVerified ? 'Valid' : 'Invalid');
+    } catch (error) {
+        console.error("Error in verifyUser:", error);
+        document.getElementById('verificationResult').innerHTML = 'Error occurred. Check console.';
+    }
+}
+
+async function changeAdmin() {
+    try {
+        const newAdminAddress = document.getElementById('newAdminAddress').value;
+
+        // Check if an account has been selected
+        if (!selectedAccount) {
+            alert('Please select an account from the grid.');
+            return;
+        }
+
+        // Checking if the new admin address is valid
+        if (!web3.utils.isAddress(newAdminAddress)) {
+            alert('Invalid address');
+            return;
+        }
+
+        console.log("Changing admin to:", newAdminAddress);
+        await adminContract.methods.changeAdmin(newAdminAddress).send({ from: selectedAccount });
+        console.log("Admin changed successfully.");
+
+        // Refresh the accounts grid to update the admin highlight
+        displayAccounts();
+    } catch (error) {
+        console.error("Error in changeAdmin:", error);
+        displayError("Error in changeAdmin: " + error.message);
+    }
+}
+
+
+async function displayAccounts() {
+        try {
+            const accounts = await web3.eth.getAccounts();
+            const currentAdmin = await adminContract.methods.admin().call();
+            const accountsTableBody = document.getElementById('accountsTableBody');
+            accountsTableBody.innerHTML = '';  // Clear existing rows
+
+            accounts.forEach((account, index) => {
+                const isCurrentAdmin = account === currentAdmin;
+                const rowClass = isCurrentAdmin ? 'admin-row' : '';
+
+                // Create row element
+                const row = document.createElement('tr');
+                row.className = rowClass;
+                row.onclick = () => selectAccount(account);
+                row.innerHTML = `<td>${index + 1}</td><td>${account}</td>`;
+
+                // Add event listener for right-click to copy account
+                row.addEventListener('contextmenu', function (e) {
+                    showContextMenu(e, account);  // Show context menu on right-click
+                });
+
+                // Append row to table body
+                accountsTableBody.appendChild(row);
+            });
+        } catch (error) {
+            console.error("Error in displayAccounts:", error);
+            displayError("Error in displayAccounts: " + error.message);
+        }
+    }
+
+
+
+function selectAccount(account) {
+    selectedAccount = account;
+    document.getElementById('userAddress').value = account;
+}
+
+
+
+
+function displayError(message) {
+        const errorDiv = document.getElementById('errorMessages');
+        errorDiv.innerHTML = '<p>Error: ' + message + '</p>'; // Only display the latest error
+    }
+
+
+// Adjusted context menu functions
+    function showContextMenu(e, account) {
+        e.preventDefault();
+        let contextMenu = document.getElementById("contextMenu");
+        contextMenu.style.display = "block";
+        contextMenu.style.left = e.pageX + "px";
+        contextMenu.style.top = e.pageY + "px";
+
+        let copyAccount = document.getElementById("copyAccount");
+        copyAccount.onclick = function() { copyToClipboard(account); };
+    }
+
+function hideContextMenu() {
+    let contextMenu = document.getElementById("contextMenu");
+    contextMenu.style.display = "none";
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Account copied to clipboard.");
+    }).catch(err => {
+        alert('Error in copying text: ', err);
+    });
+}
+
+function copyAccountToClipboard(account) {
+    navigator.clipboard.writeText(account).then(function() {
+        console.log('Account copied to clipboard');
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+
+
+
+
+ </script>
+
+</body>
+</html>
